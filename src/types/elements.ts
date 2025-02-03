@@ -22,6 +22,7 @@ export interface DrawElement {
   strokeStyle: StrokeStyle;
   roughness: number;
   text?: string;
+  isEraser?: boolean;
 }
 
 export type DrawElements = DrawElement[];

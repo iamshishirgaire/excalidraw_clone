@@ -11,6 +11,7 @@ interface CreateElementProps {
   strokeStyle: StrokeStyle;
   roughness: number;
   text?: string;
+  isEraser?: boolean;
 }
 
 export const createElement = ({

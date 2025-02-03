@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import rough from "roughjs";
 import { useDrawingStore } from "@/store/drawingStore";
 import { createElement } from "@/lib/drawing";
@@ -224,17 +224,17 @@ export const Canvas = () => {
 
         const startPoint = { x: transformedX, y: transformedY };
         const element = createElement({
-          type: tool,
+          type: tool === Tool.Eraser ? Tool.Pencil : tool, // Use Pencil for eraser
           points: [startPoint, startPoint],
-          strokeColor,
-          strokeWidth,
+          strokeColor:
+            tool === Tool.Eraser ? getBackgroundColor() : strokeColor,
+          strokeWidth: tool === Tool.Eraser ? eraserSize : strokeWidth,
           strokeStyle,
-          roughness,
+          roughness: tool === Tool.Eraser ? 0 : roughness, // Reduce roughness for eraser
         });
         addElement(element);
       }
     } else {
-      // Continue drawing if touch is active
       if (isPanning) {
         const deltaX = coordinates.x - lastMousePosition.x;
         const deltaY = coordinates.y - lastMousePosition.y;
@@ -259,7 +259,7 @@ export const Canvas = () => {
         const currentElement = elements[index];
         if (!currentElement) return;
 
-        if (tool === Tool.Pencil) {
+        if (tool === Tool.Pencil || tool === Tool.Eraser) {
           const updatedPoints = [
             ...currentElement.points,
             { x: transformedX, y: transformedY },
@@ -267,6 +267,10 @@ export const Canvas = () => {
           const updatedElement = createElement({
             ...currentElement,
             points: updatedPoints,
+            strokeColor:
+              tool === Tool.Eraser ? getBackgroundColor() : strokeColor,
+            strokeWidth: tool === Tool.Eraser ? eraserSize : strokeWidth,
+            roughness: tool === Tool.Eraser ? 0 : roughness,
           });
           updateElement(currentElement.id, updatedElement);
         } else {
@@ -320,3 +324,6 @@ export const Canvas = () => {
     />
   );
 };
+function getBackgroundColor(): string {
+  throw new Error("Function not implemented.");
+}
