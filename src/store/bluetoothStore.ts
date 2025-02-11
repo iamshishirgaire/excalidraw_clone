@@ -30,7 +30,8 @@ export const BLUETOOTH_SERVICES = {
   },
 } as const;
 
-export const useBluetoothStore = create<BluetoothState>((set) => ({
+export const useBluetoothStore = create<BluetoothState>((set, get) => ({
+  disconnectDevice() {},
   device: null,
   error: null,
   characteristics: {},
@@ -99,6 +100,8 @@ export const useBluetoothStore = create<BluetoothState>((set) => ({
             const decodedValue = new TextDecoder().decode(value);
             switch (characteristic) {
               case BLUETOOTH_SERVICES.COORDINATES.CHARACTERISTIC:
+                //console it
+                console.log("Coordinates", JSON.parse(decodedValue));
                 useCoordinateStore
                   .getState()
                   .setCoordinates(
@@ -118,8 +121,10 @@ export const useBluetoothStore = create<BluetoothState>((set) => ({
 
                 if (JSON.parse(decodedValue).action === 1) {
                   useDrawingStore.getState().undo();
-                } else {
+                } else if (JSON.parse(decodedValue).action === 0) {
                   useDrawingStore.getState().redo();
+                } else if (JSON.parse(decodedValue).action === 2) {
+                  useDrawingStore.getState().reset();
                 }
 
                 break;
@@ -157,10 +162,34 @@ export const useBluetoothStore = create<BluetoothState>((set) => ({
     }
   },
 
-  disconnectDevice: () => {
-    set((state) => {
-      state.device?.gatt?.disconnect();
-      return { device: null };
+  // Add cleanup and optimization
+  cleanup: () => {
+    const state = get();
+    if (state.device?.gatt?.connected) {
+      state.device.gatt.disconnect();
+    }
+    set({
+      device: null,
+      error: null,
+      characteristics: {},
     });
+  },
+
+  // Optimize characteristic updates
+  handleCharacteristicUpdate: (characteristic: string, value: DataView) => {
+    const decodedValue = new TextDecoder().decode(value);
+    const parsedValue = JSON.parse(decodedValue);
+
+    // Use a switch statement for better performance
+    switch (characteristic) {
+      case BLUETOOTH_SERVICES.COORDINATES.CHARACTERISTIC:
+        requestAnimationFrame(() => {
+          useCoordinateStore
+            .getState()
+            .setCoordinates(parsedValue.X, parsedValue.Y);
+        });
+        break;
+      // ... other cases
+    }
   },
 }));

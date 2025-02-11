@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import rough from "roughjs";
-import { useDrawingStore } from "@/store/drawingStore";
+import { getToolCursor } from "@/lib/cursors";
 import { createElement } from "@/lib/drawing";
 import { cn } from "@/lib/utils.ts";
-import { getToolCursor } from "@/lib/cursors";
-import { Tool } from "@/types/tools";
 import { useCoordinateStore } from "@/store/coordinateStore";
+import { useDrawingStore } from "@/store/drawingStore";
+import { Tool } from "@/types/tools";
+import { useCallback, useEffect, useRef, useState } from "react";
+import rough from "roughjs";
+import { isPointNearElement } from "@/lib/utils";
 
 export const Canvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -15,6 +16,8 @@ export const Canvas = () => {
     y: number;
   }>({ x: 0, y: 0 });
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isTouchActive, setIsTouchActive] = useState(false);
+
   const { coordinates } = useCoordinateStore();
   const {
     tool,
@@ -27,11 +30,24 @@ export const Canvas = () => {
     roughness,
     eraserSize,
     zoom,
-
     setIsDrawing,
     addElement,
     updateElement,
   } = useDrawingStore();
+
+  const drawEraserIndicator = useCallback(
+    (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, eraserSize / 2, 0, Math.PI * 2);
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    },
+    [eraserSize]
+  );
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -50,7 +66,6 @@ export const Canvas = () => {
     ctx.save();
 
     ctx.translate(panOffset.x, panOffset.y);
-
     ctx.translate(centerX, centerY);
     ctx.scale(zoom / 100, zoom / 100);
     ctx.translate(-centerX, -centerY);
@@ -62,7 +77,25 @@ export const Canvas = () => {
     });
 
     ctx.restore();
-  }, [tool, eraserSize, elements, panOffset, zoom]);
+
+    if (
+      tool === Tool.Eraser &&
+      isTouchActive &&
+      coordinates.x !== 0 &&
+      coordinates.y !== 0
+    ) {
+      drawEraserIndicator(ctx, coordinates.x, coordinates.y);
+    }
+  }, [
+    tool,
+    eraserSize,
+    elements,
+    panOffset,
+    zoom,
+    coordinates,
+    isTouchActive,
+    drawEraserIndicator,
+  ]);
 
   const handleWheel = (event: WheelEvent) => {
     if (event.ctrlKey) {
@@ -79,95 +112,6 @@ export const Canvas = () => {
       y: prev.y - deltaY,
     }));
   };
-  // const handleMouseUp = () => {
-  //   setIsDrawing(false);
-  //   setIsPanning(false);
-  // };
-
-  // const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
-  //   const { offsetX, offsetY } = event.nativeEvent;
-  //   setLastMousePosition({ x: offsetX, y: offsetY });
-  //   if (tool === Tool.Eraser) {
-  //     setIsDrawing(true);
-  //   }
-  //   if (tool === Tool.Hand) {
-  //     setIsPanning(true);
-  //   } else {
-  //     setIsDrawing(true);
-
-  //     const canvas = canvasRef.current;
-  //     if (!canvas) return;
-
-  //     const transformedX =
-  //       (offsetX - canvas.width / 2 - panOffset.x) / (zoom / 100) +
-  //       canvas.width / 2;
-  //     const transformedY =
-  //       (offsetY - canvas.height / 2 - panOffset.y) / (zoom / 100) +
-  //       canvas.height / 2;
-
-  //     const startPoint = { x: transformedX, y: transformedY };
-  //     const element = createElement({
-  //       type: tool,
-  //       points: [startPoint, startPoint],
-  //       strokeColor,
-  //       strokeWidth,
-  //       strokeStyle,
-  //       roughness,
-  //     });
-  //     addElement(element);
-  //   }
-  // };
-  // const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-  //   const { offsetX, offsetY } = event.nativeEvent;
-  //   if (isPanning) {
-  //     const deltaX = offsetX - lastMousePosition.x;
-  //     const deltaY = offsetY - lastMousePosition.y;
-
-  //     setPanOffset((prev) => ({
-  //       x: prev.x + deltaX,
-  //       y: prev.y + deltaY,
-  //     }));
-
-  //     setLastMousePosition({ x: offsetX, y: offsetY });
-  //   }
-
-  //   if (isDrawing) {
-  //     const canvas = canvasRef.current;
-  //     if (!canvas) return;
-
-  //     const transformedX =
-  //       (offsetX - canvas.width / 2 - panOffset.x) / (zoom / 100) +
-  //       canvas.width / 2;
-  //     const transformedY =
-  //       (offsetY - canvas.height / 2 - panOffset.y) / (zoom / 100) +
-  //       canvas.height / 2;
-
-  //     const index = elements.length - 1;
-  //     const currentElement = elements[index];
-  //     if (!currentElement) return;
-
-  //     if (tool === Tool.Pencil) {
-  //       const updatedPoints = [
-  //         ...currentElement.points,
-  //         { x: transformedX, y: transformedY },
-  //       ];
-  //       const updatedElement = createElement({
-  //         ...currentElement,
-  //         points: updatedPoints,
-  //       });
-  //       updateElement(currentElement.id, updatedElement);
-  //     } else {
-  //       const updatedElement = createElement({
-  //         ...currentElement,
-  //         points: [
-  //           currentElement.points[0],
-  //           { x: transformedX, y: transformedY },
-  //         ],
-  //       });
-  //       updateElement(currentElement.id, updatedElement);
-  //     }
-  //   }
-  // };
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (tool === Tool.Eraser) {
@@ -191,22 +135,47 @@ export const Canvas = () => {
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool, eraserSize]);
-  // Add new state to track if touch is active
-  const [isTouchActive, setIsTouchActive] = useState(false);
 
-  // Remove onMouseDown, onMouseMove, onMouseUp handlers from canvas
+  const handleErase = useCallback(
+    (x: number, y: number, canvas: HTMLCanvasElement) => {
+      const transformedPoint = {
+        x:
+          (x - canvas.width / 2 - panOffset.x) / (zoom / 100) +
+          canvas.width / 2,
+        y:
+          (y - canvas.height / 2 - panOffset.y) / (zoom / 100) +
+          canvas.height / 2,
+      };
 
-  // Add effect to handle coordinate changes from Bluetooth
+      const remainingElements = elements.filter(
+        (element) =>
+          !isPointNearElement(transformedPoint, element, eraserSize / 2)
+      );
+
+      if (remainingElements.length !== elements.length) {
+        useDrawingStore.setState({
+          elements: remainingElements,
+          history: [...useDrawingStore.getState().history, remainingElements],
+          historyIndex: useDrawingStore.getState().historyIndex + 1,
+        });
+      }
+    },
+    [elements, panOffset, zoom, eraserSize]
+  );
+
   useEffect(() => {
-    if (coordinates.x === 0 && coordinates.y === 0) return; // Ignore initial state
+    if (coordinates.x === 0 && coordinates.y === 0) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    if (tool === Tool.Eraser) {
+      handleErase(coordinates.x, coordinates.y, canvas);
+      return;
+    }
+
     if (!isTouchActive) {
-      // Start new drawing when touch is detected
       setIsTouchActive(true);
       setLastMousePosition({ x: coordinates.x, y: coordinates.y });
 
@@ -224,13 +193,12 @@ export const Canvas = () => {
 
         const startPoint = { x: transformedX, y: transformedY };
         const element = createElement({
-          type: tool === Tool.Eraser ? Tool.Pencil : tool, // Use Pencil for eraser
+          type: tool,
           points: [startPoint, startPoint],
-          strokeColor:
-            tool === Tool.Eraser ? getBackgroundColor() : strokeColor,
-          strokeWidth: tool === Tool.Eraser ? eraserSize : strokeWidth,
+          strokeColor: strokeColor,
+          strokeWidth: strokeWidth,
           strokeStyle,
-          roughness: tool === Tool.Eraser ? 0 : roughness, // Reduce roughness for eraser
+          roughness: roughness,
         });
         addElement(element);
       }
@@ -259,7 +227,7 @@ export const Canvas = () => {
         const currentElement = elements[index];
         if (!currentElement) return;
 
-        if (tool === Tool.Pencil || tool === Tool.Eraser) {
+        if ([Tool.Pencil, Tool.Eraser].includes(tool)) {
           const updatedPoints = [
             ...currentElement.points,
             { x: transformedX, y: transformedY },
@@ -267,10 +235,7 @@ export const Canvas = () => {
           const updatedElement = createElement({
             ...currentElement,
             points: updatedPoints,
-            strokeColor:
-              tool === Tool.Eraser ? getBackgroundColor() : strokeColor,
-            strokeWidth: tool === Tool.Eraser ? eraserSize : strokeWidth,
-            roughness: tool === Tool.Eraser ? 0 : roughness,
+            roughness: roughness,
           });
           updateElement(currentElement.id, updatedElement);
         } else {
@@ -287,7 +252,6 @@ export const Canvas = () => {
     }
   }, [coordinates]);
 
-  // Add effect to handle touch end (when coordinates stop being received)
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
@@ -298,7 +262,6 @@ export const Canvas = () => {
     };
 
     if (isTouchActive) {
-      // Reset touch active state if no coordinates are received for 100ms
       timeoutId = setTimeout(handleTouchEnd, 100);
     }
 
@@ -324,6 +287,3 @@ export const Canvas = () => {
     />
   );
 };
-function getBackgroundColor(): string {
-  throw new Error("Function not implemented.");
-}
