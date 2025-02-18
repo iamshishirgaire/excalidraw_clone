@@ -9,6 +9,10 @@ import rough from "roughjs";
 import { isPointNearElement } from "@/lib/utils";
 
 export const Canvas = () => {
+  // Add requestAnimationFrame ref
+  // Remove unused requestRef since it's not being used in the code
+  // Remove unused prevTimeRef since it's not being used anywhere in the code
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [lastMousePosition, setLastMousePosition] = useState<{

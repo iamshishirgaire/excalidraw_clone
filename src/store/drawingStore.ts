@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Tool } from "@/types/tools";
 import { DrawElement, DrawElements, StrokeStyle } from "@/types/elements";
+import { DrawingService } from "@/services/drawingService";
 
 interface DrawingState {
   tool: Tool;
@@ -31,11 +32,12 @@ interface DrawingState {
   eraserSize: number;
   reset: () => void;
   setEraserSize: (size: number) => void;
+  drawingService: DrawingService;
 }
 
 export const useDrawingStore = create<DrawingState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       isPanning: false,
       eraserSize: 20,
       offset: { x: 2000, y: 2000 },
@@ -80,14 +82,15 @@ export const useDrawingStore = create<DrawingState>()(
           }
           return state;
         }),
+      drawingService: DrawingService.getInstance(),
+
       addElement: (element) =>
         set((state) => {
-          const newElements = [...state.elements, element];
-          // Limit history size
-          const maxHistorySize = 50;
+          const processedElement = state.drawingService.processElement(element);
+          const newElements = [...state.elements, processedElement];
           const newHistory = [
             ...state.history.slice(
-              Math.max(0, state.historyIndex + 1 - maxHistorySize),
+              Math.max(0, state.historyIndex + 1 - 50),
               state.historyIndex + 1
             ),
             newElements,
@@ -105,12 +108,19 @@ export const useDrawingStore = create<DrawingState>()(
           const elementIndex = state.elements.findIndex((el) => el.id === id);
           if (elementIndex === -1) return state;
 
+          const processedElement = state.drawingService.processElement(element);
           const newElements = [...state.elements];
-          newElements[elementIndex] = element;
+          newElements[elementIndex] = processedElement;
 
-          return {
-            elements: newElements,
-          };
+          if (element.type === Tool.Pencil && !get().isDrawing) {
+            return {
+              elements: newElements,
+              history: [...state.history, newElements],
+              historyIndex: state.history.length,
+            };
+          }
+
+          return { elements: newElements };
         }),
 
       updateElements: (newElements: DrawElements) =>
