@@ -38,11 +38,22 @@ export const StyleMenu = () => {
 
   const strokeIcons = {
     [StrokeStyle.Solid]: <FaRegSquare className="h-4 w-4" />,
-    [StrokeStyle.Dashed]: <PiRectangleDashedLight className="h-4 w-4 dash" />, // Custom dashed styling
-    [StrokeStyle.Dotted]: <TbCircleDotted className="h-4 w-4 dot" />, // Custom dotted styling
+    [StrokeStyle.Dashed]: <PiRectangleDashedLight className="h-4 w-4 dash" />,
+    [StrokeStyle.Dotted]: <TbCircleDotted className="h-4 w-4 dot" />,
   };
 
   const colors = ["#E63946", "#F4A261", "#2A9D8F", "#264653", "#8ECAE6"];
+
+  const handleExportPDF = () => {
+    if (typeof window !== "undefined") {
+      const win = window as Window & {
+        exportCanvasToPDF?: () => void;
+      };
+      if (win.exportCanvasToPDF) {
+        win.exportCanvasToPDF();
+      }
+    }
+  };
 
   return (
     <DropdownMenu>
@@ -187,7 +198,7 @@ export const StyleMenu = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {}}
+            onClick={handleExportPDF}
             className="w-full flex items-center justify-center"
           >
             <SaveIcon className="h-4 w-4 mr-2" />

@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { tools } from "@/lib/tools";
+import { cn } from "@/lib/utils";
 import { useDrawingStore } from "@/store/drawingStore";
 
 export const Toolbar = () => {
@@ -12,6 +13,7 @@ export const Toolbar = () => {
           key={tool}
           variant={selectedTool === tool ? "secondary" : "ghost"}
           size="icon"
+          className={cn(selectedTool === tool && " ring-2 ring-primary/20")}
           onClick={() => setTool(tool)}
         >
           <Icon className="h-4 w-4" />
