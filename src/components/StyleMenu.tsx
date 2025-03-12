@@ -19,6 +19,7 @@ import { useTheme } from "@/components/ThemeProvider.tsx";
 import { cn } from "@/lib/utils.ts";
 import { PiRectangleDashedLight } from "react-icons/pi";
 import { TbCircleDotted } from "react-icons/tb";
+import html2canvas from "html2canvas";
 
 export const StyleMenu = () => {
   const {
@@ -44,13 +45,24 @@ export const StyleMenu = () => {
 
   const colors = ["#E63946", "#F4A261", "#2A9D8F", "#264653", "#8ECAE6"];
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (typeof window !== "undefined") {
-      const win = window as Window & {
-        exportCanvasToPDF?: () => void;
-      };
-      if (win.exportCanvasToPDF) {
-        win.exportCanvasToPDF();
+      const canvas = document.querySelector(".canvas-element");
+      if (canvas) {
+        try {
+          const capturedCanvas = await html2canvas(canvas as HTMLElement);
+          const imageData = capturedCanvas.toDataURL("image/png");
+
+          // Create link and trigger download
+          const link = document.createElement("a");
+          link.href = imageData;
+          link.download = "drawing.png";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (error) {
+          console.error("Error exporting canvas:", error);
+        }
       }
     }
   };
@@ -202,7 +214,7 @@ export const StyleMenu = () => {
             className="w-full flex items-center justify-center"
           >
             <SaveIcon className="h-4 w-4 mr-2" />
-            Save as PDF
+            Save
           </Button>
         </div>
       </DropdownMenuContent>

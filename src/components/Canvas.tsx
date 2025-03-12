@@ -287,7 +287,9 @@ export const Canvas = () => {
         left: 0,
         zIndex: 0,
       }}
-      className={cn("absolute z-0 top-0 left-0 bg-background cursor-cell")}
+      className={cn(
+        "canvas-element absolute z-0 top-0 left-0 bg-background cursor-cell"
+      )}
     />
   );
 };
